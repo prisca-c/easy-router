@@ -1,6 +1,7 @@
 package org.example
 
 import com.sun.net.httpserver.HttpServer
+import org.example.response.StatusResponse
 import org.example.routing.Router
 import java.net.InetSocketAddress
 import kotlin.system.exitProcess
@@ -16,17 +17,17 @@ fun main() {
 
 fun runHttpServer() {
     val server = HttpServer.create(InetSocketAddress(8080), 0)
-    val route = Router(server)
-    route.get("/") { exchange ->
-        val response = "Home"
-        exchange.sendResponseHeaders(200, response.length.toLong())
-        exchange.responseBody.use { it.write(response.toByteArray()) }
+    val router = Router(server)
+    router.get("/hello") { exchange, _ ->
+        StatusResponse().ok(exchange, "Hello, World!")
     }
-    route.get("/hello") { exchange ->
-        val response = "Hello, World!"
-        exchange.sendResponseHeaders(200, response.length.toLong())
-        exchange.responseBody.use { it.write(response.toByteArray()) }
+
+    router.get("/hello/:name") { exchange, params ->
+        val name = params["name"] ?: "World"
+        StatusResponse().ok(exchange, "Hello, $name!")
     }
+
+    router.handleRequests()
     server.executor = null
     server.start()
 }

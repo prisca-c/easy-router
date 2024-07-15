@@ -2,58 +2,38 @@ package org.example.routing
 
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
-import org.example.response.StatusResponse
 
-class Router(private val server: HttpServer): StatusResponse() {
-    companion object {
-        private val routes = mutableMapOf<String, MutableMap<String, String>>()
+class Router(private val server: HttpServer): Route() {
+    private val routesWithParams = mutableListOf<Triple<String, (HttpExchange, Map<String, String>) -> Unit, String>>()
+
+    fun get(pattern: String, handler: (HttpExchange, Map<String, String>) -> Unit) {
+        routesWithParams.add(Triple(pattern, handler, "GET"))
     }
 
-    private fun addRoute(route: String, method: String, handler: String) {
-        if (routes.containsKey(route)) {
-            if (routes[route]?.containsKey(method) == true) {
-                throw Exception("Route already exists")
+    fun post(pattern: String, handler: (HttpExchange, Map<String, String>) -> Unit) {
+        routesWithParams.add(Triple(pattern, handler, "POST"))
+    }
+
+    fun put(pattern: String, handler: (HttpExchange, Map<String, String>) -> Unit) {
+        routesWithParams.add(Triple(pattern, handler, "PUT"))
+    }
+
+    fun delete(pattern: String, handler: (HttpExchange, Map<String, String>) -> Unit) {
+        routesWithParams.add(Triple(pattern, handler, "DELETE"))
+    }
+
+    fun handleRequests() {
+        server.createContext("/") { exchange ->
+            val requestPath = exchange.requestURI.path
+            val matchedRoute = matchRoute(routesWithParams, exchange)
+
+            if (matchedRoute != null) {
+                val (pattern, handler, _) = matchedRoute
+                val params = requestPath.extractParams(pattern) ?: emptyMap()
+                handler(exchange, params)
             } else {
-                routes[route]?.set(method, handler)
+                notFound(exchange)
             }
-        } else {
-            routes[route] = mutableMapOf(method to handler)
-        }
-    }
-
-    fun get(route: String, handler: (exchange: HttpExchange) -> Unit) {
-        addRoute(route, "GET", handler.toString())
-
-        server.createContext(route) { exchange ->
-            exchange.requestMethod.takeIf { it == "GET" } ?: return@createContext methodNotAllowed(exchange)
-            handler(exchange)
-        }
-    }
-
-    fun post(route: String, handler: (exchange: HttpExchange) -> Unit) {
-        addRoute(route, "POST", handler.toString())
-
-        server.createContext(route) { exchange ->
-            exchange.requestMethod.takeIf { it == "POST" } ?: return@createContext methodNotAllowed(exchange)
-            handler(exchange)
-        }
-    }
-
-    fun put(route: String, handler: (exchange: HttpExchange) -> Unit) {
-        addRoute(route, "PUT", handler.toString())
-
-        server.createContext(route) { exchange ->
-            exchange.requestMethod.takeIf { it == "PUT" } ?: return@createContext methodNotAllowed(exchange)
-            handler(exchange)
-        }
-    }
-
-    fun delete(route: String, handler: (exchange: HttpExchange) -> Unit) {
-        addRoute(route, "DELETE", handler.toString())
-
-        server.createContext(route) { exchange ->
-            exchange.requestMethod.takeIf { it == "DELETE" } ?: return@createContext methodNotAllowed(exchange)
-            handler(exchange)
         }
     }
 }
