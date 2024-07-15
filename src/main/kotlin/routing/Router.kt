@@ -22,6 +22,10 @@ class Router(private val server: HttpServer): Route() {
         routesWithParams.add(Triple(pattern, handler, "DELETE"))
     }
 
+    fun patch(pattern: String, handler: (HttpExchange, Map<String, String>) -> Unit) {
+        routesWithParams.add(Triple(pattern, handler, "PATCH"))
+    }
+
     fun handleRequests() {
         server.createContext("/") { exchange ->
             val requestPath = exchange.requestURI.path
